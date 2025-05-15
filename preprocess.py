@@ -7,7 +7,7 @@ import pypianoroll
 import tempfile
 import shutil
 
-output_type_literal = Literal["chordify", "pianoroll"]
+output_type_literal = Literal["chordify_string", "chordify_int", "pianoroll"]
 
 @contextlib.contextmanager
 def make_temp():
@@ -24,7 +24,7 @@ class Preprocessor():
                  binarize:bool=True,
                  lookback:int=1,
                  resolution:int=8,
-                 output_type:output_type_literal = "chordify"):
+                 output_type:output_type_literal = "chordify_string"):
         '''
         Creates a preprocessor object that allows for easy access of piano rolls \n
         Param: get_dict - Returns a dictionary form similar to that of Markov Chains where the key is the length of lookback \n
@@ -58,7 +58,7 @@ class Preprocessor():
 
         self.filepath_array = self.filter(filepath_array)
 
-    def filter(self, filepath_array: list[Path]):
+    def filter(self, filepath_array: list[Path]) -> list[Path]:
         filtered_filepath_array = []
         for path in filepath_array:
             music_data = m21.converter.parse(path)
@@ -88,16 +88,8 @@ class Preprocessor():
         return self.convert_path_to_dict(self.filepath_array[index])
     
     
-    def convert_path_to_dict(path: Path,
-                             lookback:int=1,
-                             binarized:bool=True,
-                             transpose:bool=True,
-                             resolution:int=8,
-                             output_type:output_type_literal="chordify"
-    ):
-        data = []
-        labels = []
-        duration = []
+    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+        
         music_data = m21.converter.parse(path)
         key = music_data.analyze("key")
 
@@ -105,10 +97,14 @@ class Preprocessor():
             i = m21.interval.Interval(key.tonic, m21.pitch.Pitch("C"))
             music_data.transpose(i, inPlace=True)
 
-        if output_type == "chordify":
-            moving_window = ["START"] * lookback
+        if self.output_type == "chordify_string":
+            data = []
+            labels = []
+            duration = []
+            moving_window = ["START"] * self.lookback
             chord_data = music_data.chordify()
             for chord in chord_data.recurse().getElementsByClass(m21.chord.Chord):
+                chord.closedPosition(forceOctave=4, inPlace=True)
                 data.append(moving_window.copy())
                 labels.append(chord.pitchedCommonName)
                 duration.append(chord.duration.quarterLength)
@@ -118,16 +114,42 @@ class Preprocessor():
             
             return np.array(data), np.array(labels), np.array(duration)
         
+        if self.output_type == "chordify_int":
+            data = []
+            labels = []
+            duration = []
+            moving_window = [0] * self.lookback
+            chord_data = music_data.chordify()
+            for chord in chord_data.recurse().getElementsByClass(m21.chord.Chord):
+                chord.closedPosition(forceOctave=4, inPlace=True)
+                data.append(moving_window.copy())
+                chord_as_int = self.chord_to_base_n(chord)
+                labels.append(chord_as_int)
+                duration.append(chord.duration.quarterLength)
+
+                moving_window.pop(0)
+                moving_window.append(chord_as_int)
+
+            return np.array(data), np.array(labels), np.array(duration)
+
+        
         # When piano roll, the lookback is forced to be 1 to decrease complexity
-        if output_type == "pianoroll":
+        if self.output_type == "pianoroll":
             with make_temp() as temp_dir:
                 output_path = music_data.write("midi", fp=Path(temp_dir / "temp.mid"))
-                roll = pypianoroll.read(output_path).set_resolution(resolution)
+                roll = pypianoroll.read(output_path).set_resolution(self.resolution)
 
-            if binarized:
+            if self.binarized:
                 roll = roll.binarize()
 
-            input = np.stack([np.zeros(128), roll[:-1]], axis=0)
+            inputs = np.stack([np.zeros(128), roll[:-1]], axis=0)
             
-            return input, roll, None
+            return inputs, roll, None
 
+    def chord_to_base_n(chord: tuple[m21.note.Note]):
+        base_n_sum = 0
+        for note in chord:
+            relative_to_c4 = note.pitch.midi - 60
+            base_n_sum += 2 ** relative_to_c4
+
+        return base_n_sum
