@@ -146,7 +146,7 @@ class Preprocessor():
             
             return inputs, roll, None
 
-    def chord_to_base_n(chord: tuple[m21.note.Note]):
+    def chord_to_base_n(chord: tuple[m21.note.Note, ...]):
         base_n_sum = 0
         for note in chord:
             relative_to_c4 = note.pitch.midi - 60
