@@ -1,6 +1,6 @@
 import contextlib
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Union
 import numpy as np
 import music21 as m21
 import pypianoroll
@@ -88,7 +88,7 @@ class Preprocessor():
         return self.convert_path_to_dict(self.filepath_array[index])
     
     
-    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, np.ndarray, Union[np.ndarray, None]]:
         
         music_data = m21.converter.parse(path)
         key = music_data.analyze("key")
