@@ -7,7 +7,7 @@ import pypianoroll
 import tempfile
 import shutil
 
-output_type_literal = Literal["chordify_string", "chordify_int", "pianoroll"]
+output_type_literal = Literal["chordify_string","chordify_int", "pianoroll", "full_pianoroll"]
 
 @contextlib.contextmanager
 def make_temp():
@@ -98,19 +98,20 @@ class Preprocessor():
         return self.convert_path_to_dict(self.filepath_array[index])
     
     
-    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, np.ndarray, Union[np.ndarray, None]]:
+    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, Union[np.ndarray | None], Union[np.ndarray, None]]:
         '''
         Internal function to help convert piano rolls and m21 streams into sliding window
         representations that can be used as training data. \n
         Param: path - Path object to the midi file to convert \n
         Param: transpose - Bool on whether or not to transpose the piece to C Major; should generally always be true\n
-        Returns a tuple containing (data, labels, duration if applicable)
+        Returns a tuple containing (data, labels if applicable, duration if applicable)
         '''
         music_data = m21.converter.parse(path)
         key = music_data.analyze("key")
 
         if transpose and key != m21.key.Key("C"):
             i = m21.interval.Interval(key.tonic, m21.pitch.Pitch("C"))
+            num_semitones = i.semitones
             music_data.transpose(i, inPlace=True)
 
         if self.output_type == "chordify_string":
@@ -167,6 +168,21 @@ class Preprocessor():
             inputs = np.vstack([np.zeros(128), roll[:-1]])
             
             return inputs, roll, None
+        
+        if self.output_type == "full_pianoroll":
+            full_roll = pypianoroll.read(path)
+            if len(full_roll.tracks) > 1:
+                print(f"The song {path.name} has more than one track. Exiting...")
+                return
+            
+            full_roll = full_roll.transpose(num_semitones).tracks[0]
+            if self.binarize:
+                full_roll = full_roll.binarize()
+            
+            full_roll = full_roll.pianoroll.astype(float)
+            inputs = np.vstack([np.zeros(128), full_roll[:-1]])
+
+            return inputs, full_roll, None
 
     def chord_to_base_n(self, chord: tuple[m21.note.Note, ...]):
         base_n_sum = 0
