@@ -1,7 +1,5 @@
 .env
 surname_checked_midis
-filter.py
 venv
 check.py
-.gitignore
 __pycache__/

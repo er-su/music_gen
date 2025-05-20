@@ -1,4 +1,3 @@
-from __future__ import annotations
 import contextlib
 from pathlib import Path
 from typing import Literal, Union
@@ -8,7 +7,7 @@ import pypianoroll
 import tempfile
 import shutil
 
-output_type_literal = Literal["chordify_string","chordify_int", "pianoroll", "full_pianoroll"]
+output_type_literal = Literal["chordify_string","chordify_int", "chordify_roman", "pianoroll", "full_pianoroll"]
 
 @contextlib.contextmanager
 def make_temp():
@@ -135,7 +134,7 @@ class Preprocessor():
             
             return np.array(data), np.array(labels), np.array(duration)
         
-        if self.output_type == "chordify_int":
+        elif self.output_type == "chordify_int":
             data = []
             labels = []
             duration = []
@@ -152,10 +151,28 @@ class Preprocessor():
                 moving_window.append(chord_as_int)
 
             return np.array(data), np.array(labels), np.array(duration)
+        
+        elif self.output_type == "chordify_roman":
+            data = []
+            labels = []
+            duration = []
+            moving_window = ["START"] * self.lookback
+            chord_data = music_data.chordify()
+            for chord in chord_data.recurse().getElementsByClass(m21.chord.Chord):
+                chord_rn = str(m21.roman.romanNumeralFromChord(chord, m21.key.Key("C")).figure)
+                chord.closedPosition(forceOctave=4, inPlace=True)
+                data.append(moving_window.copy())
+                labels.append(chord_rn)
+                duration.append(chord.duration.quarterLength)
+
+                moving_window.pop(0)
+                moving_window.append(chord_rn)
+            
+            return np.array(data), np.array(labels), np.array(duration)
 
         
         # When piano roll, the lookback is forced to be 1 to decrease complexity
-        if self.output_type == "pianoroll":
+        elif self.output_type == "pianoroll":
             with make_temp() as temp_dir:
                 output_path = music_data.write("midi", fp=Path(temp_dir, "temp.mid"))
                 roll = pypianoroll.read(output_path).set_resolution(self.resolution)
@@ -173,7 +190,7 @@ class Preprocessor():
             
             return inputs, roll, None
         
-        if self.output_type == "full_pianoroll":
+        elif self.output_type == "full_pianoroll":
             full_roll = pypianoroll.read(path)
             if len(full_roll.tracks) > 1:
                 print(f"The song {path.name} has more than one track. Exiting...")
