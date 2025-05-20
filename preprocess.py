@@ -101,7 +101,7 @@ class Preprocessor():
         return self.convert_path_to_dict(self.filepath_array[index])
     
     
-    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, Union[np.ndarray | None], Union[np.ndarray, None]]:
+    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, Union[np.ndarray, None], Union[np.ndarray, None]]:
         '''
         Internal function to help convert piano rolls and m21 streams into sliding window
         representations that can be used as training data. \n
