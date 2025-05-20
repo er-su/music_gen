@@ -30,7 +30,8 @@ class Preprocessor():
         Param: get_dict - Returns a dictionary form similar to that of Markov Chains where the key is the length of lookback \n
         Param: binarize - Returns a binarized form of the piano roll \n
         Param: lookback - How much context should be provided to the next prediction \n
-        Param: resolution - How often should the the loader sample within the music between quarter notes
+        Param: resolution - How often should the the loader sample within the music between quarter notes \n
+        Param: output_type - Select what kind of output is generated from the preprocessor
         '''
         self.folder_path = folder_path
         self.binarize = binarize
@@ -42,7 +43,7 @@ class Preprocessor():
 
     def collect(self, surname:str=None):
         '''
-        Grabs all file paths that match the surname provided
+        Grabs all file paths that match the surname provided \n
         Param: surname - returns all midi files whos title contains the surname
         '''
         if not self.folder_path.is_dir():
@@ -59,6 +60,11 @@ class Preprocessor():
         self.filepath_array = self.filter(filepath_array)
 
     def filter(self, filepath_array: list[Path]) -> list[Path]:
+        '''
+        This is an internal function that filters out any non-valid songs\n
+        Param: filepath_array - A List object of paths of midi files\n
+        Returns a filtered list of paths
+        '''
         filtered_filepath_array = []
         for path in filepath_array:
             music_data = m21.converter.parse(path)
@@ -81,6 +87,10 @@ class Preprocessor():
         return self.filepath_array.__iter__()
     
     def iter(self):
+        '''
+        An alternative generator that automatically converts each item into a sliding window dataset\n
+        This is opposed to the __iter__ dunder that only iterates through the file paths of filtered midis
+        '''
         for path in self.filepath_array:
             yield self.convert_path_to_dict(path)
     
@@ -89,7 +99,13 @@ class Preprocessor():
     
     
     def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, np.ndarray, Union[np.ndarray, None]]:
-        
+        '''
+        Internal function to help convert piano rolls and m21 streams into sliding window
+        representations that can be used as training data. \n
+        Param: path - Path object to the midi file to convert \n
+        Param: transpose - Bool on whether or not to transpose the piece to C Major; should generally always be true\n
+        Returns a tuple containing (data, labels, duration if applicable)
+        '''
         music_data = m21.converter.parse(path)
         key = music_data.analyze("key")
 
@@ -136,13 +152,19 @@ class Preprocessor():
         # When piano roll, the lookback is forced to be 1 to decrease complexity
         if self.output_type == "pianoroll":
             with make_temp() as temp_dir:
-                output_path = music_data.write("midi", fp=Path(temp_dir / "temp.mid"))
+                output_path = music_data.write("midi", fp=Path(temp_dir, "temp.mid"))
                 roll = pypianoroll.read(output_path).set_resolution(self.resolution)
 
-            if self.binarized:
+            if len(roll.tracks) > 1:
+                print(f"The song {path.name} has more than one track. Exiting...")
+                return
+            
+            roll = roll.tracks[0]
+            if self.binarize:
                 roll = roll.binarize()
-
-            inputs = np.stack([np.zeros(128), roll[:-1]], axis=0)
+            
+            roll = roll.pianoroll.astype(float)
+            inputs = np.vstack([np.zeros(128), roll[:-1]])
             
             return inputs, roll, None
 
