@@ -19,7 +19,7 @@ def make_temp():
 
 class Preprocessor():
 
-    def __init__(self, folder_path:Path=Path("surname_checked_midis"),
+    def __init__(self, folder_path:Union[Path, str] = Path("surname_checked_midis"),
                  get_dict:bool=True,
                  binarize:bool=True,
                  lookback:int=1,
@@ -33,6 +33,9 @@ class Preprocessor():
         Param: resolution - How often should the the loader sample within the music between quarter notes \n
         Param: output_type - Select what kind of output is generated from the preprocessor
         '''
+        if type(folder_path) == str:
+            folder_path = Path(folder_path)
+        
         self.folder_path = folder_path
         self.binarize = binarize
         self.get_dict = get_dict
