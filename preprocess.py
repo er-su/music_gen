@@ -159,7 +159,7 @@ class Preprocessor():
             moving_window = ["START"] * self.lookback
             chord_data = music_data.chordify()
             for chord in chord_data.recurse().getElementsByClass(m21.chord.Chord):
-                chord_rn = str(m21.roman.romanNumeralFromChord(chord, m21.key.Key("C")).figure)
+                chord_rn = str(m21.roman.romanNumeralFromChord(chord, m21.key.Key("C")).romanNumeral)
                 chord.closedPosition(forceOctave=4, inPlace=True)
                 data.append(moving_window.copy())
                 labels.append(chord_rn)
