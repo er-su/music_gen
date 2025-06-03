@@ -7,7 +7,7 @@ import pypianoroll
 import tempfile
 import shutil
 
-output_type_literal = Literal["chordify_string","chordify_int", "chordify_roman", "pianoroll", "full_pianoroll"]
+output_type_literal = Literal["chordify_string","chordify_int", "chordify_roman", "pianoroll", "fast_pianoroll", "12note"]
 
 @contextlib.contextmanager
 def make_temp():
@@ -159,8 +159,8 @@ class Preprocessor():
             moving_window = ["START"] * self.lookback
             chord_data = music_data.chordify()
             for chord in chord_data.recurse().getElementsByClass(m21.chord.Chord):
-                chord_rn = str(m21.roman.romanNumeralFromChord(chord, m21.key.Key("C")).romanNumeral)
                 chord.closedPosition(forceOctave=4, inPlace=True)
+                chord_rn = str(m21.roman.romanNumeralFromChord(chord, m21.key.Key("C")).romanNumeral)
                 data.append(moving_window.copy())
                 labels.append(chord_rn)
                 duration.append(chord.duration.quarterLength)
@@ -170,6 +170,32 @@ class Preprocessor():
             
             return np.array(data), np.array(labels), np.array(duration)
 
+        elif self.output_type == "12note":
+            data = []
+            labels = []
+            duration = []
+            moving_window = ["START"] * self.lookback
+            chord_data = music_data.chordify()
+            for chord in chord_data.recurse().getElementsByClass(m21.chord.Chord):
+                chord.closedPosition(forceOctave=4, inPlace=True)
+                pitch_array = chord.orderedPitchClasses
+                assert(all((x < 13 and x > 0) for x in pitch_array))
+
+                one_hot_array = [0] * 12
+                for pitch in pitch_array:
+                    one_hot_array[pitch - 1] = 1
+                
+                data.append(moving_window.copy())
+                labels.append(one_hot_array)
+                duration.append(chord.duration.quarterLength)
+
+                moving_window.pop(0)
+                moving_window.append(one_hot_array)
+            
+            data = np.array(data)
+            assert(data.shape[1:] == (self.lookback, 12))
+            assert(data.shape[0] == labels.shape[0])
+            return np.array(data), np.array(labels), np.array(duration)
         
         # When piano roll, the lookback is forced to be 1 to decrease complexity
         elif self.output_type == "pianoroll":
@@ -190,7 +216,7 @@ class Preprocessor():
             
             return inputs, roll, None
         
-        elif self.output_type == "full_pianoroll":
+        elif self.output_type == "fast_pianoroll":
             full_roll = pypianoroll.read(path)
             if len(full_roll.tracks) > 1:
                 print(f"The song {path.name} has more than one track. Exiting...")
