@@ -1,0 +1,14 @@
+{
+    "generation_seed": 69,
+    "num_epochs": 100,
+    "learning_rate": 0.005,
+    "batch_size": 32,
+    "eps": 1e-6,
+    "lookback": 12,
+
+    "input_len": 128,
+    "gru_dim": 256,
+    "gru_num_layers": 3,
+    "output_len": 128,
+    "dropout_rate": 0.2
+}
