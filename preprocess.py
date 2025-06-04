@@ -1,6 +1,6 @@
 import contextlib
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal, Union, List, Tuple
 import numpy as np
 import music21 as m21
 import pypianoroll
@@ -62,7 +62,7 @@ class Preprocessor():
 
         self.filepath_array = self.filter(filepath_array)
 
-    def filter(self, filepath_array: list[Path]) -> list[Path]:
+    def filter(self, filepath_array: List[Path]) -> List[Path]:
         '''
         This is an internal function that filters out any non-valid songs\n
         Param: filepath_array - A List object of paths of midi files\n
@@ -97,11 +97,11 @@ class Preprocessor():
         for path in self.filepath_array:
             yield self.convert_path_to_dict(path)
     
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> Tuple[np.ndarray, Union[np.ndarray, None], Union[np.ndarray, None]]:
         return self.convert_path_to_dict(self.filepath_array[index])
     
     
-    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> tuple[np.ndarray, Union[np.ndarray, None], Union[np.ndarray, None]]:
+    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> Tuple[np.ndarray, Union[np.ndarray, None], Union[np.ndarray, None]]:
         '''
         Internal function to help convert piano rolls and m21 streams into sliding window
         representations that can be used as training data. \n
@@ -231,7 +231,7 @@ class Preprocessor():
 
             return inputs, full_roll, None
 
-    def chord_to_base_n(self, chord: tuple[m21.note.Note, ...]):
+    def chord_to_base_n(self, chord: Tuple[m21.note.Note, ...]) -> int:
         base_n_sum = 0
         for note in chord:
             relative_to_c4 = note.pitch.midi - 60
