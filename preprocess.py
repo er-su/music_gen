@@ -101,7 +101,7 @@ class Preprocessor():
         return self.convert_path_to_dict(self.filepath_array[index])
     
     
-    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> Tuple[np.ndarray, Union[np.ndarray, None], Union[np.ndarray, None]]:
+    def convert_path_to_dict(self, path: Path, transpose:bool=True) -> Tuple[np.ndarray, np.ndarray, Union[np.ndarray, None]]:
         '''
         Internal function to help convert piano rolls and m21 streams into sliding window
         representations that can be used as training data. \n
@@ -111,7 +111,7 @@ class Preprocessor():
         '''
         music_data = m21.converter.parse(path)
         key = music_data.analyze("key")
-
+        num_semitones = 0
         if transpose and key != m21.key.Key("C"):
             i = m21.interval.Interval(key.tonic, m21.pitch.Pitch("C"))
             num_semitones = i.semitones

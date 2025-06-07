@@ -24,16 +24,15 @@ class MidiDataset(Dataset):
         dataframe_path: Union[Path, str] = None,
         sliced: Union[int, None] = None,
         surname: str = None,
-        folder_path:Union[Path, str] = Path("surname_checked_midis"),
+        folder_path: Union[Path, str] = Path("surname_checked_midis"),
         get_dict:bool=True,
         binarize:bool=True,
         lookback:int=1,
         resolution:int=8,
         output_type:output_type_literal = "chordify_string"
     ):
-        self.dataframe_path = dataframe_path if type(dataframe_path) == Path else Path(dataframe_path)
+        self.dataframe_path = dataframe_path
         self.sliced = sliced
-
         if self.dataframe_path == None:
             self.preprocessor = Preprocessor(
                 folder_path=folder_path,
@@ -43,10 +42,10 @@ class MidiDataset(Dataset):
                 resolution=resolution,
                 output_type=output_type
             )
-
             self.preprocessor.collect(surname=surname)
 
         else:
+            self.dataframe_path = dataframe_path if type(dataframe_path) == Path else Path(dataframe_path)
             self.data, self.labels, self.durations = self.df_to_array(pd.read_csv(dataframe_path))
 
     def df_to_array(self, dataframe: pd.DataFrame) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
@@ -82,16 +81,22 @@ class MidiDataset(Dataset):
         else:
             return len(self.data)
     
-    def __getitem__(self, index) -> Tuple[np.ndarray, Union[np.ndarray, None], Union[np.ndarray, None]]:
+    def __getitem__(self, index) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        '''
+        If durations are not applicable (i.e. pianoroll or fast_pianoroll), then durations will be completely zero
+        '''
         
         if self.dataframe_path == None:
-            data, labels, durations = super().__getitem__(index)
+            data, labels, durations = self.preprocessor.__getitem__(index)
             if self.sliced == None:
                 return data, labels, durations
             
             if not (len(data) >= self.sliced):
                 raise ValueError("Slice length is longer than song")
             
+            if durations == None:
+                durations = np.zeros(data.shape)
+
             randint = random.randint(0, len(data) - self.sliced)
             return data[randint: randint + self.sliced], labels[randint: randint + self.sliced], durations[randint: randint + self.sliced]
         
@@ -103,11 +108,14 @@ class MidiDataset(Dataset):
             if not (len(data) >= self.sliced):
                 raise ValueError("Slice length is longer than song")
             
+            if durations == None:
+                durations = np.zeros(data.shape)
+
             randint = random.randint(0, len(data) - self.sliced)
-            return data[randint: randint + self.sliced], data[randint: randint + self.sliced], data[randint: randint + self.sliced]
+            return data[randint: randint + self.sliced], labels[randint: randint + self.sliced], durations[randint: randint + self.sliced]
 
 if __name__ == "__main__":
-    dataset = MidiDataset(dataframe_path="../output/Agnew_chordify_int_data.csv", sliced=256)
+    dataset = MidiDataset(folder_path="../surname_checked_midis", sliced=32, output_type="fast_pianoroll", surname="agnew")
     dataloader = DataLoader(dataset, batch_size = 2, shuffle=True)
     for data, label, duration in dataloader:
         print(f"Batch shape: {data.shape}, Labels: {label.shape}")
