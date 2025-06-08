@@ -22,13 +22,11 @@ class GRUBaseline(nn.Module):
             batch_first=True,
             dropout=self.dropout_rate,
             bidirectional=False,
-            device=self.is_cuda
         )
 
         self.ff_dense = nn.Linear(
             in_features=self.gru_hidden_size * self.gru_layer,
             out_features=self.output_len,
-            device=self.is_cuda
         )
 
         self.sigmoid = nn.Sigmoid()
