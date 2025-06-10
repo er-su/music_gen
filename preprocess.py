@@ -78,7 +78,7 @@ class Preprocessor():
             # Filter if more than one time signature
             if len(music_data.getTimeSignatures()) > 1:
                 continue
-
+            print("Collected {path.name}")
             filtered_filepath_array.append(path)
 
         return filtered_filepath_array
@@ -174,12 +174,12 @@ class Preprocessor():
             data = []
             labels = []
             duration = []
-            moving_window = ["START"] * self.lookback
+            moving_window = [[-1] * 12] * self.lookback
             chord_data = music_data.chordify()
             for chord in chord_data.recurse().getElementsByClass(m21.chord.Chord):
                 chord.closedPosition(forceOctave=4, inPlace=True)
                 pitch_array = chord.orderedPitchClasses
-                assert(all((x < 13 and x > 0) for x in pitch_array))
+                assert(all((x < 13 and x >= 0) for x in pitch_array))
 
                 one_hot_array = [0] * 12
                 for pitch in pitch_array:
@@ -191,11 +191,12 @@ class Preprocessor():
 
                 moving_window.pop(0)
                 moving_window.append(one_hot_array)
-            
+
             data = np.array(data)
+            labels = np.array(labels)
             assert(data.shape[1:] == (self.lookback, 12))
             assert(data.shape[0] == labels.shape[0])
-            return np.array(data), np.array(labels), np.array(duration)
+            return data, labels, np.array(duration)
         
         # When piano roll, the lookback is forced to be 1 to decrease complexity
         elif self.output_type == "pianoroll":
