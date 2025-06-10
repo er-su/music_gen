@@ -18,7 +18,8 @@ class Postprocessor():
         '''
         Run this to extract chords and durations to prepare them for postprocessing\n
         If 12note is selected as the method, the filepath is expected to lead to a .pkl file with the format of List[List[12 long one-hot vecs], List[duration]]\n
-        If chordify_int or chordify_roman are recieved, then the filepath is expected to be a csv with the first column being chords/ints and the second column being durations
+        If chordify_int or chordify_roman are recieved, then the filepath is expected to be a csv with the first column being chords/ints and the second column being durations\n
+        If fast_pianoroll or pianoroll are selected, then the expected output is a .npy file that contains a numpy array of size (seq_len by 128)
         '''
         if type(path) == str:
             path = Path(path)
@@ -45,6 +46,10 @@ class Postprocessor():
             for chord, duration in data_array:
                 chords.append(chord)
                 durations.append(Fraction(duration))
+
+        elif self.input_type == "pianoroll" or self.input_type == "fast_pianoroll":
+            chords = np.load(path)
+            return chords, None
             
         else:
             raise ValueError("Not supported")
@@ -89,7 +94,7 @@ class Postprocessor():
 
         return m21.chord.Chord(combo1, duration=m21.duration.Duration(duration))
 
-    def postprocess(self, chords: np.ndarray, durs: np.ndarray):
+    def postprocess(self, chords: np.ndarray, durs: np.ndarray = None):
         stream = m21.stream.Stream()
         
         if self.input_type == "chordify_int":
@@ -109,6 +114,13 @@ class Postprocessor():
                 indices = np.where(chord == 1.0)[0].tolist()
                 chord = m21.chord.Chord(indices, duration=duration)
                 stream.append(chord)
+
+        elif self.input_type == "pianoroll" or self.input_type == "fast_pianoroll":
+            for chord in chords:
+                indices = np.where(chord == 1.0)[0].tolist()
+                chord = m21.chord.Chord(indices)
+                stream.append(chord)
+
 
         return stream
 
