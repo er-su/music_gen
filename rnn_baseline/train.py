@@ -1,5 +1,7 @@
 import json
 import torch
+import pickle
+import numpy as np
 from torch import nn
 from pathlib import Path
 from dataset import MidiDataset
@@ -15,7 +17,9 @@ class Trainer:
         self.dataset = dataset
         self.checkpoint_path = checkpoint_path
         self.learning_rate = self.hyperparams["learning_rate"]
-        self.loss = nn.BCELoss()
+        self.loss = FocalLoss(gamma=3, alpha=0.5)
+        self.loss2 = nn.BCELoss(reduction="sum")
+        self.eps = hyperparams["eps"]
 
         self.train_set, self.val_set = random_split(self.dataset, [0.95, 0.05])
         self.train_loader = DataLoader(self.train_set, batch_size=self.hyperparams["batch_size"], shuffle=True)
@@ -32,48 +36,98 @@ class Trainer:
         self.model.train()
         for i, datas in enumerate(self.train_loader):
             data, labels, _ = datas
+            data = data.type(torch.float32)
+            labels = labels.type(torch.float32)
             if self.is_cuda:
                 data = data.to("cuda")
                 labels = labels.to("cuda")
 
-            preds = self.model(data[0], labels)
-            back = self.loss(preds, labels)
+            preds = self.model(data, labels)
+            self.optimizer.zero_grad()
+            back = self.loss2(preds, labels)
             back.backward()
             self.optimizer.step()
 
             print(f"Batch {i} loss: {back}")
 
 
-    def train_one_epoch(self, epoch_index):
-        print(f"######### EPOCH {epoch_index} TRAINING #########")
+    def val_one_epoch(self, epoch_index):
+        print(f"######### EPOCH {epoch_index} VALIDATION #########")
         self.model.eval()
         for i, datas in enumerate(self.train_loader):
             data, labels, _ = datas
+            data = data.type(torch.float32)
+            labels = labels.type(torch.float32)
             if self.is_cuda:
                 data = data.to("cuda")
                 labels = labels.to("cuda")
 
-            preds = self.model(data[0], labels)
-            back = self.loss(preds, labels)
+            preds = self.model(data, labels)
+            back = self.loss2(preds, labels)
 
             print(f"Val batch {i} loss: {back}")
 
     def train_val(self):
-        if self.cuda:
+        if self.is_cuda:
             self.model.to("cuda")
 
         for epoch in range(self.num_epochs):
             self.train_one_epoch(epoch)
-            avg_vloss = round(self.val_one_epoch(epoch), 4)
+            self.val_one_epoch(epoch)
 
-            if epoch % 20 == 0:
-                save_fn = f"model_{epoch}_{avg_vloss}.pt"
-                torch.save(self.model.state_dict(), self.checkpoint_path / save_fn)
+            """ if epoch % 20 == 0 && epoch != 0:
+                save_fn = f"model_{epoch}.pt"
+                torch.save(self.model.state_dict(), self.checkpoint_path / save_fn) """
+            
+    def do_pred(self, seq_len=32):
+        z = torch.rand(128).unsqueeze(axis=0)
+        if self.is_cuda:
+            self.model.to("cpu")
+        
+        preds = self.model.infer(z, seq_len)
+        return preds
+    
+    def save_model(self, save_path=Path("models/model.pt")):
+        torch.save(self.model.state_dict(), save_path)
+
+    def load_model(self, load_path=Path("models/model.pt")):
+        self.model.load_state_dict(torch.load(load_path))
+
+    def save_preds(self, chords):
+        np.save(Path("preds.npy"), chords.detach().numpy())
+
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=0, alpha=None, eps=1E-6):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.alpha = alpha
+        self.pos_alpha = 1 / alpha
+        self.eps = eps
+
+    def forward(self, y_pred, gt):
+        return -(gt * self.pos_alpha * (1 - y_pred).pow(self.gamma) * (y_pred + self.eps).log() +
+            (1 - gt) * self.alpha * y_pred.pow(self.gamma) * (1 - y_pred + self.eps).log()).mean()
 
 if __name__ == "__main__":
     with open("hyperparams.json", "r") as f:
         hyperparams = json.load(f)
-    dataset = MidiDataset(sliced=256, surname="agnew", folder_path=Path("../surname_checked_midis"), output_type="fast_pianoroll")
-    trainer = Trainer(dataset, hyperparams)
-    trainer.train_val()
 
+    dataset = MidiDataset(dataframe_path="../output/Agnew_chordify_int_data.csv", sliced=256, output_type="fast_pianoroll", collect=False)
+    with open("../output/Bach_fast_pianoroll_data.pkl", "rb") as f:
+        datas = pickle.load(f)
+    
+    with open("../output/Bach_fast_pianoroll_labels.pkl", "rb") as f:
+        labels = pickle.load(f)
+
+    dataset.data = datas
+    dataset.labels = labels
+    dataset.durations = [None] * len(datas)    
+    
+    trainer = Trainer(dataset, hyperparams)
+    trainer.load_model()
+    #trainer.train_val()
+    preds = trainer.do_pred(seq_len=32)
+    for pred in preds:
+        print(pred)
+    #trainer.save_model()
+    trainer.save_preds(preds)
