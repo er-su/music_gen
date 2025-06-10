@@ -5,6 +5,7 @@ from preprocess import Preprocessor
 import argparse
 from contextlib import contextmanager
 import time
+from fractions import Fraction
 
 @contextmanager
 def timer(name):
@@ -12,6 +13,15 @@ def timer(name):
     yield
     t1 = time.perf_counter()
     print(f"[{name}] {t1-t0:.3f}s")
+
+def fraction_to_decimal(fraction_str):
+  """Converts a fraction string to its decimal representation."""
+  try:
+    return float(Fraction(fraction_str))
+  except ValueError:
+    return "Invalid fraction format"
+  except ZeroDivisionError:
+      return "Cannot divide by zero"
 
 def extract(prep: Preprocessor, artist: str) -> pd.DataFrame:
     """
@@ -38,6 +48,8 @@ def extract(prep: Preprocessor, artist: str) -> pd.DataFrame:
 
     df = pd.DataFrame(rows)
     cols = [f"lookback_{i+1}" for i in range(prep.lookback)] + ["label", "duration", "file", "position"]
+    df['duration'] = df['duration'].apply(Fraction)
+    df['duration'] = df['duration'].astype(float)
     return df[cols]
 
 
@@ -78,7 +90,7 @@ def main():
         help="Sub-divisions per quarter-note (only for pianoroll)"
     )
     parser.add_argument(
-        "--output-type", choices=["chordify_string", "chordify_int", "pianoroll"],
+        "--output-type", choices=["chordify_string","chordify_int", "chordify_roman", "pianoroll", "full_pianoroll"],
         default="chordify_string", help="Format of processed output"
     )
     # collect() args
@@ -119,16 +131,18 @@ def main():
         # Single-file CSV
         artist_name = args.surname or args.midi_path.stem
         output_method = args.output_type
+        lookback_window = args.lookback
         df = extract(prep, artist=artist_name)
-        out_file = args.output_dir / f"{artist_name}_{output_method}_data.csv"
+        out_file = args.output_dir / f"{artist_name}_{output_method}_{lookback_window}.csv"
         df.to_csv(out_file, index=False)
         print(f"Saved dataframe to {out_file}")
     else:
         # Folder of files
         artist_name = args.surname or "all"
         output_method = args.output_type
+        lookback_window = args.lookback
         df = extract(prep, artist=artist_name)
-        out_file = args.output_dir / f"{artist_name}_{output_method}_data.csv"
+        out_file = args.output_dir / f"{artist_name}_{output_method}_{lookback_window}.csv"
         df.to_csv(out_file, index=False)
         print(f"Saved dataframe to {out_file}")
 
