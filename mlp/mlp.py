@@ -7,18 +7,21 @@ class MusicMLP(nn.Module):
         self.note_model = nn.Sequential(
             nn.Linear(in_features=12, out_features=256),
             nn.GELU(),
+            nn.Dropout(0.1),
             nn.Linear(in_features=256, out_features=256),
             nn.GELU(),
+            nn.Dropout(0.1),
             nn.Linear(in_features=256, out_features=12),
         )
 
         self.duration_model = nn.Sequential(
             nn.Linear(in_features=12, out_features=256),
             nn.GELU(),
+            nn.Dropout(0.1),
             nn.Linear(in_features=256, out_features=256),
             nn.GELU(),
-            nn.Linear(in_features=256, out_features=1),
-            nn.ReLU()
+            nn.Dropout(0.1),
+            nn.Linear(in_features=256, out_features=8),
         )
 
     def forward(self, data):
@@ -30,6 +33,7 @@ class MusicMLP(nn.Module):
     
     def infer(self, z, seq_len):
         # Z should be a 12 dim vector
+        temp = 2
         input = z
         notes = torch.zeros((seq_len, 12))
         durations = torch.zeros((seq_len, 1))
@@ -37,6 +41,9 @@ class MusicMLP(nn.Module):
         for i in range(seq_len):
             note_pred = self.note_model(input)
             duration_pred = self.duration_model(input)
+
+            note_pred = torch.sigmoid(note_pred / temp)
+            note_pred = torch.bernoulli(note_pred)
 
             notes[i] = note_pred
             durations[i] = duration_pred
