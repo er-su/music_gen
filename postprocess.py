@@ -6,6 +6,7 @@ from numpy.typing import NDArray
 from fractions import Fraction
 import pandas as pd
 import pickle as pkl
+import random
 
 input_type_literal = Literal["chordify_string","chordify_int", "chordify_roman", "pianoroll", "fast_pianoroll", "12note"]
 
@@ -40,10 +41,13 @@ class Postprocessor():
                 durations.append(Fraction(duration))
 
         elif self.input_type == "12note":
-            data_array = pkl.load(path)
-            print(data_array)
+            with open(path, "rb") as f:
+                data_array = pkl.load(f)
+
             # Chord is of shape (lookback by 12)
-            for chord, duration in data_array:
+            cho = data_array[0]
+            dur = data_array[1]
+            for chord, duration in zip(cho,dur):
                 chords.append(chord)
                 durations.append(Fraction(duration))
 
@@ -123,10 +127,77 @@ class Postprocessor():
 
 
         return stream
+    
+    def unchordify(self, stream):
+        new_stream = m21.stream.Stream()
+        
+        for chord in stream:
+            stream_list = []
+            # Find number of notes
+            pitches = chord.pitches
+            duration = chord.duration
+            pitch_classes = chord.pitchClasses
 
+            if len(pitches) == 0:
+                continue
+
+            if len(pitches) == 1:
+                new_stream.append(chord)
+                continue
+
+            num_splits = random.randint(0, len(pitches) - 1)
+
+            if random.random() > 0.7:
+                num_splits = len(pitches) - 1
+            
+            elif self.has_adj(pitch_classes):
+                num_splits = len(pitches) * 2
+
+            if num_splits == 0:
+                new_chord = m21.chord.Chord(pitches, duration=duration)
+                new_stream.append(new_chord)
+                continue
+            
+            pos_splits = list(set([random.randint(1, len(pitches) - 1) for _ in range(num_splits)]))
+            pos_splits.insert(0, 0)
+            for i in range(len(pos_splits) - 1):
+                new_chord = m21.chord.Chord(pitches[pos_splits[i]: pos_splits[i+1]], duration=duration)
+                stream_list.append(new_chord)
+            
+            new_chord = m21.chord.Chord(pitches[pos_splits[-1]: ])
+            stream_list.append(new_chord)
+
+            if random.random() >= 0.5:
+                stream_list.reverse()
+
+            if len(pitches) <= 3 and random.random() > 0.7:
+                random.shuffle(stream_list)
+
+            for chord in stream_list:
+                new_stream.append(chord)
+
+        new_stream.insert(0, m21.tempo.MetronomeMark(number=85))
+        return new_stream
+        # Work with only 3 note chords first with 3 possible variations
+
+    def has_adj(self, arr):
+        for i in range(len(arr) - 1):
+            if arr[i+1] - arr[i] == 1 or arr[i+1] - arr[i] == 2:
+                return True
+            
+        return False
+
+    def export(self, stream: m21.stream.Stream, path=Path("example_midi/out.mid"), format="midi"):
+        if format == "musicxml":
+            path.rename(path.with_suffix(".xml"))
+            
+        stream.write(fmt=format, fp=path)
+        
 if __name__ == "__main__":
-    post = Postprocessor("chordify_int")
-    chords, durs = post.extract("generated_sequence_batched.csv")
-    print(chords)
+    post = Postprocessor("chordify_roman")
+    chords, durs = post.extract("final_out_pred/svm.csv")
     stream = post.postprocess(chords, durs)
-    stream.show("musicxml")
+    #new_stream = post.unchordify(stream)
+    #new_stream.show("musicxml")
+    stream.insert(0, m21.tempo.MetronomeMark(number=85))
+    post.export(stream, path=Path("example_midi/no_pre_svm.mid"), format="midi")
