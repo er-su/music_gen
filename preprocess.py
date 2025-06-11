@@ -239,7 +239,6 @@ class Preprocessor():
             relative_to_c4 = note.pitch.midi - 60
             if relative_to_c4 >= 12:
                 relative_to_c4 -= 12
-            print(relative_to_c4)
             base_n_sum += 2 ** relative_to_c4
 
         return base_n_sum
