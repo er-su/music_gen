@@ -7,18 +7,18 @@ This repository is a holding of a project where we attempt to utilize various ma
 - [Installation/Dependencies](#installation)
 - [Usage](#usage)
 
-# Installation
+## Installation
 
-## Clone the repository
+**Clone the repository**
 git clone https://github.com/er-su/music_gen.git
 
-## Navigate into the project directory
+**Navigate into the project directory**
 cd music_gen
 
-## Install dependencies
+**Install dependencies**
 pip install -r requirements.txt
 
-## Download the dataset
+**Download the dataset**
 download from the ByteDance [github](https://github.com/bytedance/GiantMIDI-Piano)
 
-# Usage
+## Usage
