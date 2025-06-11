@@ -78,7 +78,7 @@ class Preprocessor():
             # Filter if more than one time signature
             if len(music_data.getTimeSignatures()) > 1:
                 continue
-            print("Collected {path.name}")
+            print(f"Collected {path.name}")
             filtered_filepath_array.append(path)
 
         return filtered_filepath_array
@@ -142,6 +142,7 @@ class Preprocessor():
             chord_data = music_data.chordify()
             for chord in chord_data.recurse().getElementsByClass(m21.chord.Chord):
                 chord.closedPosition(forceOctave=4, inPlace=True)
+                print(chord)
                 data.append(moving_window.copy())
                 chord_as_int = self.chord_to_base_n(chord)
                 labels.append(chord_as_int)
@@ -236,6 +237,9 @@ class Preprocessor():
         base_n_sum = 0
         for note in chord:
             relative_to_c4 = note.pitch.midi - 60
+            if relative_to_c4 >= 12:
+                relative_to_c4 -= 12
+            print(relative_to_c4)
             base_n_sum += 2 ** relative_to_c4
 
         return base_n_sum
