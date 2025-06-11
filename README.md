@@ -23,6 +23,21 @@ pip install -r requirements.txt
 download from the ByteDance [github](https://github.com/bytedance/GiantMIDI-Piano)
 
 ## Usage
+### Data Preparation
+
+Convert MIDI files into a dataframe for training:
+
+```bash
+python df.py -l 5 --output-type <chordify_int|chordify_roman|l2note> --input-dir <surname>
+```
+
+- `-l 5`: Sequence length parameter.
+- `--output-type`: Format for representation (chordify_roman for svm and decision tree, chordify_int for XGBoost).
+- `--s`: Surname of desired composer, if left blank assumed to be all.
+
+### Model Fitting and Generation
+- For SVM, enter the svm folder and run either notebook. Assuming the proper data resides in the output folder, a sequence of music should be generated. Choose single for a standard SVM implementation, and batch for the RBFSVM method as described by our paper.
+- For Tree, enter the decision_tree folder and run the notebook. A sequence of music should be generated.
 
 ## Examples
 **MLP**
