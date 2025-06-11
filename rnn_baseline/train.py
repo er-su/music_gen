@@ -8,10 +8,10 @@ from dataset import MidiDataset
 from typing import Dict, Union
 from rnn_baseline import GRUBaseline
 from torch.utils.data import DataLoader, random_split, Dataset
+from torcheval.metrics.functional import binary_f1_score, binary_auroc
 
 class Trainer:
     def __init__(self, dataset: Dataset, hyperparams: Dict[str, Union[int, float]], checkpoint_path: Path = Path("checkpoints")):
-        
         self.hyperparams = hyperparams
         self.model = GRUBaseline(self.hyperparams)
         self.dataset = dataset
@@ -32,8 +32,14 @@ class Trainer:
         self.seq_len = self.hyperparams["seq_len"]
 
     def train_one_epoch(self, epoch_index):
+        '''
+        Do a single epoch of training
+        Param: epoch_index - The current epoch value
+        '''
         print(f"######### EPOCH {epoch_index} TRAINING #########")
         self.model.train()
+        running_acc = 0.0
+        divisor = 0
         for i, datas in enumerate(self.train_loader):
             data, labels, _ = datas
             data = data.type(torch.float32)
@@ -47,13 +53,25 @@ class Trainer:
             back = self.loss2(preds, labels)
             back.backward()
             self.optimizer.step()
-
+            running_acc += binary_auroc(data.flatten(), labels.flatten()).item()
+            divisor = i + 1
+            
+            print(f"Batch acc {i} of {running_acc}")
             print(f"Batch {i} loss: {back}")
+            
+        if self.record_accs:
+            self.train_acc.append(round(running_acc /divisor, 4))
 
 
     def val_one_epoch(self, epoch_index):
+        '''
+        Do a single epoch of validation
+        Param: epoch_index - The current epoch value
+        '''
         print(f"######### EPOCH {epoch_index} VALIDATION #########")
         self.model.eval()
+        running_acc = 0.0
+        divisor = 0
         for i, datas in enumerate(self.train_loader):
             data, labels, _ = datas
             data = data.type(torch.float32)
@@ -65,21 +83,38 @@ class Trainer:
             preds = self.model(data, labels)
             back = self.loss2(preds, labels)
 
-            print(f"Val batch {i} loss: {back}")
+            running_acc += binary_auroc(data.flatten(), labels.flatten()).item()
+            divisor = i + 1
 
-    def train_val(self):
+            print(f"Batch acc {i} of {running_acc}")
+            print(f"Val batch {i} loss: {back}")
+            
+        if self.record_accs:
+            self.val_acc.append(round(running_acc / divisor, 4))
+        
+    def train_val(self, record_accs=False):
+        '''
+        Perform training and validation epoch_num number of times\n
+        Param: record_accs - Boolean value whether or not the trainer should save both validation and training accuracies
+        '''
+    
+        self.record_accs = record_accs
         if self.is_cuda:
             self.model.to("cuda")
+
+        if record_accs:
+            self.train_acc = []
+            self.val_acc = []
 
         for epoch in range(self.num_epochs):
             self.train_one_epoch(epoch)
             self.val_one_epoch(epoch)
-
-            """ if epoch % 20 == 0 && epoch != 0:
-                save_fn = f"model_{epoch}.pt"
-                torch.save(self.model.state_dict(), self.checkpoint_path / save_fn) """
             
     def do_pred(self, seq_len=32):
+        '''
+        Perform inference from an inital random tensor\n
+        Param: seq_len - How many time steps should be generated
+        '''
         z = torch.rand(128).unsqueeze(axis=0)
         if self.is_cuda:
             self.model.to("cpu")
@@ -88,15 +123,30 @@ class Trainer:
         return preds
     
     def save_model(self, save_path=Path("models/model.pt")):
+        '''
+        Save the model\n
+        Param: save_path - Path to where to save the .pt model
+        '''
         torch.save(self.model.state_dict(), save_path)
 
     def load_model(self, load_path=Path("models/model.pt")):
+        '''
+        Load the model\n
+        Param: load_path - Path to where to load the .pt model from
+        '''
         self.model.load_state_dict(torch.load(load_path))
 
     def save_preds(self, chords):
+        '''
+        Save a set of predictions in an .npy form\n
+        Param: chords - Chords to save
+        '''
         np.save(Path("preds.npy"), chords.detach().numpy())
 
 class FocalLoss(nn.Module):
+    '''
+    Focal loss based on the loss outlined in Based on paper "Focal loss for dense object detection" by Lin, T.Y., et al
+    '''
     def __init__(self, gamma=0, alpha=None, eps=1E-6):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
@@ -124,10 +174,9 @@ if __name__ == "__main__":
     dataset.durations = [None] * len(datas)    
     
     trainer = Trainer(dataset, hyperparams)
-    trainer.load_model()
-    #trainer.train_val()
-    preds = trainer.do_pred(seq_len=32)
-    for pred in preds:
-        print(pred)
-    #trainer.save_model()
+    #trainer.load_model()
+    trainer.train_val(record_accs=True)
+    preds = trainer.do_pred(seq_len=128)
+    trainer.save_model()
     trainer.save_preds(preds)
+    

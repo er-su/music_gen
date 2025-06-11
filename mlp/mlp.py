@@ -27,15 +27,23 @@ class MusicMLP(nn.Module):
         
 
     def forward(self, data):
-        # Data is of shape seq_len, 12 and should have a set of zeros as its starting point appended
+        '''
+        Perform a single forward pass\n
+        Param: data - Data is of shape seq_len, 12 and should have a set of zeros as its starting point appended
+        '''
         data_preds = self.note_model(data)
         duration_preds = self.duration_model(data)
 
         return data_preds, duration_preds
     
     def infer(self, z, seq_len):
+        '''
+        Perform generation\n
+        Param: z - Inital vector; should be of length 12
+        Param: seq_len - Number of time steps to generate
+        '''
         # Z should be a 12 dim vector
-        alpha = 0.30
+        alpha = 0.10
         input = z
         notes = torch.zeros((seq_len, 12))
         durations = torch.zeros((seq_len, 1))
@@ -43,13 +51,12 @@ class MusicMLP(nn.Module):
 
         for i in range(seq_len):
             note_pred = self.note_model(input)
-            #CHAGNED
-            #duration_pred = self.duration_model(torch.cat((input, duration_pred), -1))
+
             duration_pred = self.duration_model(input)
 
             note_pred = torch.sigmoid(note_pred)
 
-            
+            # Perform variation of top-p selection
             total_mass = note_pred.sum().item()
             print(note_pred.shape)
             p_dyn = total_mass * alpha
@@ -63,11 +70,11 @@ class MusicMLP(nn.Module):
                 cumsum += vals.item()
                 valid_inds.append(inds.item())
 
-                if cumsum >= p_dyn:
+                if cumsum >= p_dyn and len(valid_inds) > 0:
                     break
 
             mask = torch.ones_like(note_pred)
-            mask = mask * 0.80
+            mask = mask * 0.30
             mask[valid_inds] = 1.0 
 
             

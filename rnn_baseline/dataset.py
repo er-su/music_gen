@@ -6,13 +6,10 @@ from pathlib import Path
 from typing import Union, Tuple, List
 from torch.utils.data import Dataset, DataLoader
 
+# Add the path to the preprocessor
 sys.path.append("../")
 
 from preprocess import Preprocessor, output_type_literal
-
-def collate(combined: Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]) -> Tuple[np.ndarray[np.ndarray], np.ndarray[np.ndarray], np.ndarray[np.ndarray]]:
-    datas, labels, arrays = combined
-
 
 class MidiDataset(Dataset):
     '''
@@ -29,7 +26,8 @@ class MidiDataset(Dataset):
         binarize:bool=True,
         lookback:int=1,
         resolution:int=8,
-        output_type:output_type_literal = "chordify_string"
+        output_type:output_type_literal = "chordify_string",
+        collect:bool = False
     ):
         self.dataframe_path = dataframe_path
         self.sliced = sliced
@@ -42,7 +40,17 @@ class MidiDataset(Dataset):
                 resolution=resolution,
                 output_type=output_type
             )
-            self.preprocessor.collect(surname=surname)
+            if collect:
+                self.preprocessor.collect(surname=surname)
+                self.data = []
+                self.labels = []
+                self.durations = []
+            
+                for i in range(len(self.preprocessor)):
+                    dat, label, dur = self.preprocessor[i]
+                    self.data.append(dat)
+                    self.labels.append(label)
+                    self.durations.append(dur)
 
         else:
             self.dataframe_path = dataframe_path if type(dataframe_path) == Path else Path(dataframe_path)
@@ -85,37 +93,24 @@ class MidiDataset(Dataset):
         '''
         If durations are not applicable (i.e. pianoroll or fast_pianoroll), then durations will be completely zero
         '''
+        data, labels, durations = self.data[index], self.labels[index], self.durations[index]
+        if self.sliced == None:
+            return data, labels, durations
         
-        if self.dataframe_path == None:
-            data, labels, durations = self.preprocessor.__getitem__(index)
-            if self.sliced == None:
-                return data, labels, durations
-            
-            if not (len(data) >= self.sliced):
-                raise ValueError("Slice length is longer than song")
-            
-            if durations == None:
-                durations = np.zeros(data.shape)
-
-            randint = random.randint(0, len(data) - self.sliced)
-            return data[randint: randint + self.sliced], labels[randint: randint + self.sliced], durations[randint: randint + self.sliced]
+        if not (len(data) >= self.sliced):
+            raise ValueError("Slice length is longer than song")
         
-        else:
-            data, labels, durations = self.data[index], self.labels[index], self.durations[index]
-            if self.sliced == None:
-                return data, labels, durations
-            
-            if not (len(data) >= self.sliced):
-                raise ValueError("Slice length is longer than song")
-            
-            if durations == None:
-                durations = np.zeros(data.shape)
+        if durations == None:
+            durations = np.zeros(data.shape)
 
-            randint = random.randint(0, len(data) - self.sliced)
-            return data[randint: randint + self.sliced], labels[randint: randint + self.sliced], durations[randint: randint + self.sliced]
-
+        randint = random.randint(0, len(data) - self.sliced)
+        return data[randint: randint + self.sliced], labels[randint: randint + self.sliced], durations[randint: randint + self.sliced]
+    
 if __name__ == "__main__":
-    dataset = MidiDataset(folder_path="../surname_checked_midis", sliced=32, output_type="fast_pianoroll", surname="agnew")
-    dataloader = DataLoader(dataset, batch_size = 2, shuffle=True)
-    for data, label, duration in dataloader:
-        print(f"Batch shape: {data.shape}, Labels: {label.shape}")
+    dataset = MidiDataset(folder_path=Path("../surname_checked_midis"), sliced=32, output_type="fast_pianoroll", surname="Bach")
+    loadin = np.load("test.npy", allow_pickle=True)
+    for i in range(len(loadin)):
+        loadin[i] = Path("../"+loadin[i])
+    dataset.preprocessor.filepath_array = loadin
+
+    print(dataset[0])

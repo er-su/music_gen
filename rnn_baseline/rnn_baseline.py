@@ -39,8 +39,6 @@ class GRUBaseline(nn.Module):
         Param: data - Ground truth labels shifted by one. In general, the first vector should be all zeros or a randomized one-hot encoded vector of length 128\n
         Param: gt_labels - Ground truth labels. This should be a tensor of dimensions (batch_size, seq_len, 128)
         '''
-        #final_out = torch.zeros(tuple(gt_labels.shape))
-        #prev = torch.zeros((self.num_gru_layers, self.seq_len, self.gru_hidden_size))
         preds, _ = self.gru_layer(data)
         preds = self.ff_dense(preds)
         preds = self.sigmoid(preds)
@@ -58,8 +56,8 @@ class GRUBaseline(nn.Module):
             preds, prev = self.gru_layer(full_in, prev)
             preds = self.ff_dense(preds)
             preds = self.sigmoid(preds)
-            #preds = torch.bernoulli(preds)
 
+            # Perform a variation of top-p selection
             preds = preds.squeeze()
             print(preds.shape)
             total_mass = preds.sum().item()
@@ -80,7 +78,6 @@ class GRUBaseline(nn.Module):
             mask = mask * 0.75
             mask[valid_inds] = 1.0 
 
-            
             preds = torch.bernoulli(preds * mask)
             final_out[i] = preds.squeeze()
 
