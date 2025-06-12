@@ -7,6 +7,7 @@ This repository is a holding of a project where we attempt to utilize various ma
 - [Installation/Dependencies](#installation)
 - [Usage](#usage)
 - [Examples](#examples)
+- [Contributions](#contributions)
 
 ## Installation
 
@@ -93,7 +94,22 @@ https://github.com/user-attachments/assets/0db69a33-6067-4ad1-aa19-e9e947c3aa93
 
 https://github.com/user-attachments/assets/e212811f-5ce4-4869-9dd5-879fff970966
 
+## Contributions
+Erick Sun:
+- Preprocess
+- Postprocess
+- MLP
+- RNN Baseline
+  
+Kieran Pazmino 
+- Decision Tree
+- SVM
+- Dataframe
 
+Jayden Malhotra
+- XGBoost
+
+Thank you Jayden for continuing to help us despite dropping the class
 
 
 
