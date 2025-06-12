@@ -4,4 +4,3 @@ venv
 check.py
 __pycache__/
 test.py
-final_out_pred
