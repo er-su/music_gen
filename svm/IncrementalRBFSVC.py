@@ -32,6 +32,8 @@ class IncrementalRBFSVC(BaseEstimator, ClassifierMixin):
         Number of samples to process per chunk when calling fit.
     verbose : bool, default=False
         If True, displays a progress bar during fit using tqdm.
+    score : string, default='accuracy'
+        Determines the type of accuracy score returned by self-scoring.
 
     Attributes
     ----------
@@ -50,7 +52,7 @@ class IncrementalRBFSVC(BaseEstimator, ClassifierMixin):
     """
     def __init__(self, gamma='auto', n_components=500, C=1.0,
                  loss='hinge', max_iter=1, tol=None, random_state=None,
-                 chunk_size=10000, verbose=False):
+                 chunk_size=10000, verbose=False, scoring = 'accuracy'):
         self.gamma = gamma
         self.n_components = n_components
         self.C = C
@@ -60,6 +62,7 @@ class IncrementalRBFSVC(BaseEstimator, ClassifierMixin):
         self.random_state = random_state
         self.chunk_size = chunk_size
         self.verbose = verbose
+        self.scoring = scoring
 
         # Attributes to be set on first fit/partial_fit
         self.scaler_ = None
@@ -233,5 +236,9 @@ class IncrementalRBFSVC(BaseEstimator, ClassifierMixin):
         score : float
             Mean accuracy of self.predict(X) wrt. y.
         """
-        from sklearn.metrics import accuracy_score
-        return accuracy_score(y, self.predict(X))
+        from sklearn.metrics import jaccard_score, accuracy_score
+        if self.scoring == "jaccard":
+            y_pred = jaccard_score(y, self.predict(X), average="macro")
+        else:
+            y_pred = accuracy_score(y, self.predict(X))
+        return y_pred
