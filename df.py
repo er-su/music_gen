@@ -1,3 +1,4 @@
+#Code in this file written by Kieran Pazmino
 import argparse
 from pathlib import Path
 import pandas as pd
@@ -27,11 +28,13 @@ def extract(prep: Preprocessor, artist: str) -> pd.DataFrame:
     """
     Run processing for all collected files and return a DataFrame of chord events.
     """
+    # Extract the data using the preprocessor object
     print(f"Collecting files for artist '{artist}'...")
     prep.collect(surname=artist)
     print(f"Collected {len(prep.filepath_array)} files.")
 
     rows = []
+    # Iterate over the collected files and convert them into an array, and then a dataframe
     with timer("all-files loop"):
         for path in prep.filepath_array:
             data, labels, durations = prep.convert_path_to_dict(path)
@@ -46,8 +49,10 @@ def extract(prep: Preprocessor, artist: str) -> pd.DataFrame:
                     }
                     rows.append(row)
 
+    # Create dataframe and fit data
     df = pd.DataFrame(rows)
     cols = [f"lookback_{i+1}" for i in range(prep.lookback)] + ["label", "duration", "file", "position"]
+    #Done to make regression easier.
     df['duration'] = df['duration'].apply(Fraction)
     df['duration'] = df['duration'].astype(float)
     return df[cols]
@@ -128,7 +133,7 @@ def main():
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     if args.midi_path:
-        # Single-file CSV
+        # Single-file CSV input
         artist_name = args.surname or args.midi_path.stem
         output_method = args.output_type
         lookback_window = args.lookback
@@ -137,7 +142,7 @@ def main():
         df.to_csv(out_file, index=False)
         print(f"Saved dataframe to {out_file}")
     else:
-        # Folder of files
+        # Folder of files input
         artist_name = args.surname or "all"
         output_method = args.output_type
         lookback_window = args.lookback
