@@ -7,6 +7,9 @@ from fractions import Fraction
 import pandas as pd
 import pickle as pkl
 import random
+import argparse
+
+# Writen by Erick
 
 input_type_literal = Literal["chordify_string","chordify_int", "chordify_roman", "pianoroll", "fast_pianoroll", "12note"]
 
@@ -189,15 +192,43 @@ class Postprocessor():
 
     def export(self, stream: m21.stream.Stream, path=Path("example_midi/out.mid"), format="midi"):
         if format == "musicxml":
-            path.rename(path.with_suffix(".xml"))
+            path = path.with_suffix(".mxl")
             
         stream.write(fmt=format, fp=path)
         
 if __name__ == "__main__":
-    post = Postprocessor("chordify_roman")
-    chords, durs = post.extract("final_out_pred/svm.csv")
+
+    parser = argparse.ArgumentParser(
+        description="Run the MIDI Preprocessor over a folder or single file and export CSV."
+    )
+    parser.add_argument(
+        "-f", "--filepath", type=Path,
+        default=Path("mlp/preds.npy"),
+        help="Pred file to load in"
+    )
+    parser.add_argument(
+        "--output-type", choices=["chordify_int", "chordify_roman", "12note"],
+        default="12note", help="Format of processed preds"
+    )
+    parser.add_argument(
+        "--unchordify", type=bool, default=1,
+        help="Whether or not to unchordify"
+    )
+    parser.add_argument(
+        "--format", choices=["musicxml", "midi"], default="midi",
+        help="The output format"
+    )
+
+    args = parser.parse_args()
+
+    post = Postprocessor(args.output_type)
+    chords, durs = post.extract(args.filepath)
     stream = post.postprocess(chords, durs)
-    #new_stream = post.unchordify(stream)
-    #new_stream.show("musicxml")
-    stream.insert(0, m21.tempo.MetronomeMark(number=85))
-    post.export(stream, path=Path("example_midi/no_pre_svm.mid"), format="midi")
+    if args.unchordify:
+        new_stream = post.unchordify(stream)
+        new_stream.insert(0, m21.tempo.MetronomeMark(number=85))
+        post.export(new_stream, path=Path("output.mid"), format=args.format)
+
+    else:
+        stream.insert(0, m21.tempo.MetronomeMark(number=85))
+        post.export(stream, path=Path("output.mid"), format=args.format)

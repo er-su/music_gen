@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+# Written by Erick
 class MusicMLP(nn.Module):
     def __init__(self):
         super(MusicMLP, self).__init__()

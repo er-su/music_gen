@@ -10,6 +10,7 @@ from rnn_baseline import GRUBaseline
 from torch.utils.data import DataLoader, random_split, Dataset
 from torcheval.metrics.functional import binary_f1_score, binary_auroc
 
+# Written by Erick
 class Trainer:
     def __init__(self, dataset: Dataset, hyperparams: Dict[str, Union[int, float]], checkpoint_path: Path = Path("checkpoints")):
         self.hyperparams = hyperparams

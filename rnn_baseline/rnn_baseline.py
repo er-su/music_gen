@@ -4,6 +4,7 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, Union
 
+# Written by Erick
 class GRUBaseline(nn.Module):
     def __init__(self, hyperparams: Dict[str, Union[int, float]]):
         super().__init__()

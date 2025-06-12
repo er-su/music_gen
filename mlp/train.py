@@ -4,25 +4,26 @@ from pathlib import Path
 import torch
 from torch import nn
 import numpy as np
+import argparse
 from sklearn.model_selection import train_test_split
 from torcheval.metrics.functional import binary_f1_score
 
+# Written by Erick
 class MLPTrainer():
-    def __init__(self,
-                 data_path=Path("../output/Bach_12note_data.pkl"),
-                 labels_path=Path("../output/Bach_12note_labels.pkl"),
-                 duration_path=Path("../output/Bach_12note_durations.pkl"),
-    ):
-        if data_path != None and labels_path != None:
-            with open(data_path, "rb") as f:
-                self.data = pkl.load(f)
+    def __init__(self, surname):
+        data_path=Path(f"../output/{surname}_12note_data.pkl")
+        labels_path=Path(f"../output/{surname}_12note_labels.pkl")
+        duration_path=Path(f"../output/{surname}_12note_durations.pkl")
 
-            with open(labels_path, "rb") as f:
-                self.labels = pkl.load(f)
+        with open(data_path, "rb") as f:
+            self.data = pkl.load(f)
 
-            with open(duration_path, "rb") as f:
-                self.durations = pkl.load(f)
-                self.durations = [[round(float(dur), 4) for dur in duration] for duration in self.durations]
+        with open(labels_path, "rb") as f:
+            self.labels = pkl.load(f)
+
+        with open(duration_path, "rb") as f:
+            self.durations = pkl.load(f)
+            self.durations = [[round(float(dur), 4) for dur in duration] for duration in self.durations]
 
         self.model = MusicMLP()
         self.optim = torch.optim.Adam(self.model.parameters(), lr=0.0001)
@@ -149,12 +150,19 @@ class MLPTrainer():
         self.model.load_state_dict(torch.load(load_path))
 
 if __name__ == "__main__":
-    train = MLPTrainer()
+    parser = argparse.ArgumentParser(
+        description="Load in the 12note pickle files and train the mlp"
+    )
+    parser.add_argument(
+        "-s", "--surname", type=str, default=None,
+        help="If set, search for .pkl file with the given surname"
+    )
+    args = parser.parse_args()
+    surname = args.surname.lower().capitalize()
+    train = MLPTrainer(surname)
     train.train(50, record_accs=True)
     chords, durs = train.do_pred(128)
     train.save_preds(chords, durs)
-    for chord in chords:
-        print(chord)
 
 
 

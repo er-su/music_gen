@@ -11,6 +11,8 @@ sys.path.append("../")
 
 from preprocess import Preprocessor, output_type_literal
 
+# Written by Erick
+
 class MidiDataset(Dataset):
     '''
     A wrapper class for the preprocessor for use with Pytorch's built in dataset object.
