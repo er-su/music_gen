@@ -4,40 +4,71 @@ This repository is a holding of a project where we attempt to utilize various ma
 
 ## Table of Contents
 
-- [Installation/Dependencies](##installation)
-- [Usage](##usage)
-- [Examples](##examples)
+- [Installation/Dependencies](#installation)
+- [Usage](#usage)
+- [Examples](#examples)
 
 ## Installation
 
-**Clone the repository**
+**1. Clone the repository**
+```bash
 git clone https://github.com/er-su/music_gen.git
-
-**Navigate into the project directory**
+```
+**2. Navigate into the project directory**
+```bash
 cd music_gen
-
-**Install dependencies**
+```
+**3. Install dependencies**
+```bash
 pip install -r requirements.txt
+```
+**4. Download the dataset**
 
-**Download the dataset**
-download from the ByteDance [github](https://github.com/bytedance/GiantMIDI-Piano)
+Download from the ByteDance [github](https://github.com/bytedance/GiantMIDI-Piano). In this project, we utilized the surname_checked_midis directory
 
 ## Usage
 ### Data Preparation
 
-Convert MIDI files into a dataframe for training:
+Convert MIDI files into a dataframe to prepare for training:
 
 ```bash
-python df.py -l 5 --output-type <chordify_int|chordify_roman|l2note> --input-dir <surname>
+python df.py --lookback 5 --output-type <chordify_int|chordify_roman|l2note> --surname <surname>
 ```
 
 - `-l 5`: Sequence length parameter.
-- `--output-type`: Format for representation (chordify_roman for svm and decision tree, chordify_int for XGBoost).
+- `--output-type`: Format for representation (chordify_roman for SVM and decision tree, chordify_int for XGBoost).
 - `--s`: Surname of desired composer, if left blank assumed to be all.
+
+For the MLP, since it uilitzes the 12note preprocessing method, special steps are required to train the files.
+- Enter the mlp directory
+- Run the following command
+```bash
+python 12note_pickle.py --folder-path <Path> --surname <str> --output-dir <Path>
+```
+- `--folder-path`: The path to the dataset directory.
+- `--surname`: Surname of desired composer, if left blank assumed to be all.
+- `--output-dir`: The path to the directory of where to output the .pkl files
 
 ### Model Fitting and Generation
 - For SVM, enter the svm folder and run either notebook. Assuming the proper data resides in the output folder, a sequence of music should be generated. Choose single for a standard SVM implementation, and batch for the RBFSVM method as described by our paper.
-- For Tree, enter the decision_tree folder and run the notebook. A sequence of music should be generated.
+- For Decision Tree, enter the decision_tree folder and run the notebook. A sequence of music should be generated.
+- For the Multilayer Perceptron, enter the mlp directory and run the mlp.py file. If default arguments were utilized in the 12note_pickle.py step, then no modification is necessary. train.py takes in a positional argument surname that should be exact same as the one used when creating the .pkl files.
+```bash
+python train.py --surname <str>
+```
+- For XGBoost, enter the folder xgboost and run the notebook. Assuming the correct dataset exists, this will generate a predicted sequence of 128.
+
+### Postprocessing
+- Depending on the model used, the outputs should be saved in different formats. If XGBoost, SVM, or Decision Trees were used, the output will be a .csv file with a column for chords and a column for durations
+- If the MLP was used, then a .pkl file is generated containing both the durations and the predicted chords.
+- Run the following command in the main directory
+```bash
+python postprocess.py --filepath <Path> --output-type <str> --unchordify <bool> --format <str>
+```
+- `--filepath`: The path to the predictions.
+- `--output-type`: Type of preprocessing that was utilized. Options include chordify_roman, chordify_int, and 12note
+- `--unchordify`: Whether or not the program should attempt to unchordify the predictions
+- `--format`: What format to save the predictions as. Options include .mid for midi files and .mxl for musicxml files
 
 ## Examples
 **MLP**
