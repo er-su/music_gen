@@ -49,6 +49,8 @@ python 12note_pickle.py --folder-path <Path> --surname <str> --output-dir <Path>
 - `--surname`: Surname of desired composer, if left blank assumed to be all.
 - `--output-dir`: The path to the directory of where to output the .pkl files
 
+Example versions of this already exist under the *output* directory
+
 ### Model Fitting and Generation
 - For SVM, enter the svm folder and run either notebook. Assuming the proper data resides in the output folder, a sequence of music should be generated. Choose single for a standard SVM implementation, and batch for the RBFSVM method as described by our paper.
 - For Decision Tree, enter the decision_tree folder and run the notebook. A sequence of music should be generated.
@@ -57,6 +59,8 @@ python 12note_pickle.py --folder-path <Path> --surname <str> --output-dir <Path>
 python train.py --surname <str>
 ```
 - For XGBoost, enter the folder xgboost and run the notebook. Assuming the correct dataset exists, this will generate a predicted sequence of 128.
+
+Example versions of this already exist under the *final_out_pred* directory
 
 ### Postprocessing
 - Depending on the model used, the outputs should be saved in different formats. If XGBoost, SVM, or Decision Trees were used, the output will be a .csv file with a column for chords and a column for durations
@@ -69,6 +73,8 @@ python postprocess.py --filepath <Path> --output-type <str> --unchordify <bool> 
 - `--output-type`: Type of preprocessing that was utilized. Options include chordify_roman, chordify_int, and 12note
 - `--unchordify`: Whether or not the program should attempt to unchordify the predictions
 - `--format`: What format to save the predictions as. Options include .mid for midi files and .mxl for musicxml files
+
+Example midi version already exist under the *example_midi* directory
 
 ## Examples
 **MLP**
